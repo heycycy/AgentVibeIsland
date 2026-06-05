@@ -1,10 +1,13 @@
 import AVFoundation
+import os.log
 
 /// Synthesized sound engine for Agent Vibe Island.
 /// All sounds are generated in real-time using AVAudioEngine — no asset files.
 final class AudioEngine {
 
     static let shared = AudioEngine()
+
+    private static let log = OSLog(subsystem: Bundle.main.bundleIdentifier ?? "AgentVibeIsland", category: "AudioEngine")
 
     var isMuted: Bool {
         get { UserDefaults.standard.bool(forKey: "audioMuted") }
@@ -28,16 +31,30 @@ final class AudioEngine {
 
     private let engine = AVAudioEngine()
     private let sampleRate: Double = 44100
+    private var audioDisabled = false
 
     private init() {
-        try? engine.start()
+        let silentPlayer = AVAudioPlayerNode()
+        engine.attach(silentPlayer)
+        let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)!
+        engine.connect(silentPlayer, to: engine.mainMixerNode, format: format)
+
+        do {
+            try engine.start()
+        } catch {
+            os_log(.error, log: AudioEngine.log, "Failed to start AVAudioEngine: %{public}@", error.localizedDescription)
+            audioDisabled = true
+        }
+
+        engine.disconnectNodeOutput(silentPlayer)
+        engine.detach(silentPlayer)
     }
 
     // MARK: - Public API
 
     /// Sine sweep 620→400 Hz, 90 ms, gain 0.22→0.
     func playNewRequest() {
-        guard !isMuted else { return }
+        guard !isMuted, !audioDisabled else { return }
         let vol = volumeNewRequest / 100.0
         let duration = 0.09
         let frameCount = Int(duration * sampleRate)
@@ -58,7 +75,7 @@ final class AudioEngine {
 
     /// Two sine tones: 880 Hz then 1100 Hz, 100 ms each, 70 ms apart, gain 0.15→0.
     func playAllow() {
-        guard !isMuted else { return }
+        guard !isMuted, !audioDisabled else { return }
         let vol = volumeAllow / 100.0
         let toneDur = 0.10
         let gap = 0.07
@@ -90,7 +107,7 @@ final class AudioEngine {
 
     /// Triangle wave sweep 160→100 Hz, 140 ms, gain 0.25→0.
     func playDeny() {
-        guard !isMuted else { return }
+        guard !isMuted, !audioDisabled else { return }
         let vol = volumeDeny / 100.0
         let duration = 0.14
         let frameCount = Int(duration * sampleRate)
@@ -127,7 +144,14 @@ final class AudioEngine {
         engine.connect(player, to: engine.mainMixerNode, format: buffer.format)
 
         if !engine.isRunning {
-            try? engine.start()
+            do {
+                try engine.start()
+            } catch {
+                os_log(.error, log: AudioEngine.log, "Failed to restart AVAudioEngine: %{public}@", error.localizedDescription)
+                engine.disconnectNodeOutput(player)
+                engine.detach(player)
+                return
+            }
         }
 
         player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
