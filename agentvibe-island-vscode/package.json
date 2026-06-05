@@ -1,0 +1,55 @@
+{
+  "name": "agentvibe-island-vscode",
+  "displayName": "Agent Vibe Island",
+  "description": "Routes coding agent permission requests to the Agent Vibe Island notch hub",
+  "version": "0.1.0",
+  "publisher": "clarkyao-microsoft",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "agentVibeIsland.openPreferences",
+        "title": "Agent Vibe Island: Open Preferences Folder"
+      }
+    ],
+    "configuration": {
+      "title": "Agent Vibe Island",
+      "properties": {
+        "agentVibeIsland.socketPath": {
+          "type": "string",
+          "default": "~/.agentvibeisland/ipc.sock",
+          "description": "Path to the Agent Vibe Island Unix domain socket"
+        },
+        "agentVibeIsland.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Agent Vibe Island integration"
+        },
+        "agentVibeIsland.fallbackToNative": {
+          "type": "boolean",
+          "default": true,
+          "description": "Fall back to native permission modals if Agent Vibe Island is not running"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.3"
+  }
+}
